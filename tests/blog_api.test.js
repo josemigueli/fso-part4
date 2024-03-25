@@ -6,27 +6,13 @@ const app = require('../app')
 
 const api = supertest(app)
 const Blog = require('../models/blog')
-
-const initialBlogs = [
-    {
-      title: "React patterns",
-      author: "Michael Chan",
-      url: "https://reactpatterns.com/",
-      likes: 7,
-    },
-    {
-      title: "Go To Statement Considered Harmful",
-      author: "Edsger W. Dijkstra",
-      url: "http://www.u.arizona.edu/~rubinson/copyright_violations/Go_To_Considered_Harmful.html",
-      likes: 5,
-    }
-]
+const helper = require('./test_helper')
 
 beforeEach(async () => {
     await Blog.deleteMany({})
-    let blogObject = new Blog(initialBlogs[0])
+    let blogObject = new Blog(helper.initialBlogs[0])
     await blogObject.save()
-    blogObject = new Blog(initialBlogs[1])
+    blogObject = new Blog(helper.initialBlogs[1])
     await blogObject.save()
 })
 
@@ -47,16 +33,10 @@ test('id and not _id as a unique identifier property of the blog', async () => {
 })
 
 test('successfully creates a new blog post', async () => {
-    const newBlog = {
-        title: "First class tests",
-        author: "Robert C. Martin",
-        url: "http://blog.cleancoder.com/uncle-bob/2017/05/05/TestDefinitions.htmll",
-        likes: 10,
-    }
-
+    const initialBlogs = await helper.getBlogsInDb();
     await api
         .post('/api/blogs')
-        .send(newBlog)
+        .send(helper.validBlog)
         .expect(201)
         .expect('Content-Type', /application\/json/)
 
@@ -64,20 +44,14 @@ test('successfully creates a new blog post', async () => {
     const titles = response.body.map(r => r.title)
 
     assert.strictEqual(response.body.length, initialBlogs.length + 1)
-    assert(titles.includes(newBlog.title))
+    assert(titles.includes(helper.validBlog.title))
 })
 
 describe('missing properties', () => {
     test('likes property is missing from the request', async () => {
-        const missingLikesBlog = {
-            title: "TDD harms architecture",
-            author: "Robert C. Martin",
-            url: "http://blog.cleancoder.com/uncle-bob/2017/03/03/TDD-Harms-Architecture.html",
-        }
-    
         await api
             .post('/api/blogs')
-            .send(missingLikesBlog)
+            .send(helper.missingLikesBlog)
             .expect(201)
             .expect('Content-Type', /application\/json/)
             .expect(function (res) {
@@ -86,51 +60,51 @@ describe('missing properties', () => {
     })
 
     test('title property is missing 400 bad request', async () => {
-        const missingTitle = {
-            author: "Edsger W. Dijkstra",
-            url: "http://www.cs.utexas.edu/~EWD/transcriptions/EWD08xx/EWD808.html",
-            likes: 12,
-        }
-
         await api
             .post('/api/blogs')
-            .send(missingTitle)
+            .send(helper.missingTitle)
             .expect(400)
     })
 
     test('url property is missing 400 bad request', async () => {
-        const missingUrl = {
-            title: "Canonical string reduction",
-            author: "Edsger W. Dijkstra",
-            likes: 12
-        }
-
         await api
             .post('/api/blogs')
-            .send(missingUrl)
+            .send(helper.missingUrl)
             .expect(400)
     })
 })
 
 test('delete a blog', async () => {
-    const getBlogs = await Blog.find({})
-    const blogs = getBlogs.map(b => b.toJSON())
-    const blogToDelete = blogs[0]
+    const initialBlogs = await helper.getBlogsInDb();
+    const blogToDelete = initialBlogs[0]
 
     await api
         .delete(`/api/blogs/${blogToDelete.id}`)
         .expect(204)
 
-    const getBlogsAfterDelete = await Blog.find({})
-    const blogsAfterDelete = getBlogsAfterDelete.map(b => b.toJSON())
+    const blogsAfterDelete = await helper.getBlogsInDb()
 
-    assert.strictEqual(blogsAfterDelete.length, blogs.length - 1)
+    assert.strictEqual(blogsAfterDelete.length, initialBlogs.length - 1)
     assert(!blogsAfterDelete.includes(blogToDelete))
-
 })
 
 test('update a blog', async () => {
-    
+    const initialBlogs = await helper.getBlogsInDb();
+    const blogToUpdate = initialBlogs[0]
+
+    await api
+        .put(`/api/blogs/${blogToUpdate.id}`)
+        .send(helper.validBlog)
+        .expect(200)
+        .expect('Content-Type', /application\/json/)
+
+    const checkBlogs = await helper.getBlogsInDb()
+    const checkContent = checkBlogs.map(b => {
+        delete b.id
+        return b
+    })
+    assert.strictEqual(initialBlogs.length, checkBlogs.length)
+    assert(checkContent.find(b => JSON.stringify(b) === JSON.stringify(helper.validBlog)))
 })
 
 after(async () => {
