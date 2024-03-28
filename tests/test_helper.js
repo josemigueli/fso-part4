@@ -1,8 +1,15 @@
 const Blog = require('../models/blog')
+const User = require('../models/user')
+const bcrypt = require('bcrypt')
 
 const getBlogsInDb = async () => {
     const getBlogs = await Blog.find({})
     return getBlogs.map(b => b.toJSON())
+}
+
+const usersInDb = async () => {
+    const users = await User.find({})
+    return users.map(u => u.toJSON())
 }
 
 const initialBlogs = [
@@ -45,11 +52,62 @@ const missingUrl = {
     likes: 12
 }
 
+const rootUser = {
+    username: 'root',
+    name: 'Superuser',
+    password: 'password'
+}
+
+const validUser = {
+    username: 'john_doe',
+    name: 'John Doe',
+    password: 'myAwesomePassword'
+}
+
+const missingUsernameUser = {
+    name: 'John Doe',
+    password: 'myAwesomePassword'
+}
+
+const missingPasswordUser = {
+    username: 'john_doe',
+    name: 'John Doe',
+}
+
+const usernameLength = {
+    username: 'jo',
+    name: 'John Doe',
+    password: 'myAwesomePassword'
+}
+
+const passwordLength = {
+    username: 'john_doe',
+    name: 'John Doe',
+    password: 'my'
+}
+
+const hashedValidUser = async () => {
+    const passwordHash = await bcrypt.hash(validUser.password, 10)
+    return {
+        username: validUser.username,
+        name: validUser.name,
+        passwordHash
+    }
+}
+
 module.exports = {
     getBlogsInDb,
     initialBlogs,
     validBlog,
     missingLikesBlog,
     missingTitle,
-    missingUrl
+    missingUrl,
+    usersInDb,
+    validUser,
+    rootUser,
+    missingUsernameUser,
+    missingPasswordUser,
+    usernameLength,
+    passwordLength,
+    hashedValidUser
 }

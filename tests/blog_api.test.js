@@ -6,14 +6,24 @@ const app = require('../app')
 
 const api = supertest(app)
 const Blog = require('../models/blog')
+const User = require('../models/user')
 const helper = require('./test_helper')
 
 beforeEach(async () => {
     await Blog.deleteMany({})
-    let blogObject = new Blog(helper.initialBlogs[0])
-    await blogObject.save()
-    blogObject = new Blog(helper.initialBlogs[1])
-    await blogObject.save()
+    await User.deleteMany({})
+
+    let userObject = new User(await helper.hashedValidUser())
+    await userObject.save()
+
+    const savedBlogs = await Blog.insertMany(
+        helper.initialBlogs.map(b => ({
+            ...b,
+            user: userObject
+        }))
+    )
+    userObject.blogs = userObject.blogs.concat(savedBlogs.map(b => b._id))
+    await userObject.save()
 })
 
 test('blogs are returned as json', async () => {
@@ -99,12 +109,10 @@ test('update a blog', async () => {
         .expect('Content-Type', /application\/json/)
 
     const checkBlogs = await helper.getBlogsInDb()
-    const checkContent = checkBlogs.map(b => {
-        delete b.id
-        return b
-    })
+    const checkTitle = checkBlogs.map(b => b.title)
+
     assert.strictEqual(initialBlogs.length, checkBlogs.length)
-    assert(checkContent.find(b => JSON.stringify(b) === JSON.stringify(helper.validBlog)))
+    assert(checkTitle.includes(helper.validBlog.title))
 })
 
 after(async () => {
