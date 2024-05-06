@@ -49,18 +49,12 @@ blogsRouter.delete('/:id', userExtractor, async (request, response) => {
 blogsRouter.put('/:id', userExtractor, async (request, response) => {
     jwt.verify(request.token, process.env.SECRET)
 
-    const userId = request.user.id
-    const blogToUpdate = await Blog.findById(request.params.id)
-
-    if (userId.toString() !== blogToUpdate.user.toString()) {
-        return response.status(401).json({ error: 'invalid token' })
-    }
-
     const { title, author, url, likes } = request.body
+    const user = request.user.id
 
     const updatedBlog = await Blog.findByIdAndUpdate(
         request.params.id,
-        {title, author, url, likes},
+        {title, author, url, likes, user},
         { new: true, runValidators: true, context: 'query' }
     )
 
